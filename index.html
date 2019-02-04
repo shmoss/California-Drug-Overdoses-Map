@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta charset="utf-8">
+    <title>D3js CA Overdose Deaths</title>
+
+    <!-- bulma css-->
+    <link rel="stylesheet"  type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.3.2/css/bulma.min.css">
+
+    <!-- CSS stylesheet -->
+    <link rel="stylesheet" type="text/css" href="stylesheet.css">
+
+    <!-- D3.js CDN source -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <script src="http://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script type="text/javascript" src = "js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+	<link rel="stylesheet" href="css/bootstrap-theme.min.css" />
+    <script src="//d3js.org/d3.geo.projection.v0.min.js"></script>
+    <script src="//d3projection.js"></script>
+    <script src="//d3js.org/topojson.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="data/CaliforniaCountiesOverdoses.json"></script>
+    <script src="data/Chitown.json"></script>
+  
+  
+
+  </head>
+  <body>
+    <div class="container">
+        <!-- Title -->
+        <h1 class="title has-text-centered">Drug Overdose Mortality Rate</h1>
+        <h2 class="subtitle has-text-centered">California counties</h2>
+
+        <div class="columns">
+          <div class="column is-half">
+          	<h2 class="subtitle has-text-centered" style="margin-left:-150px;">2018</h2>
+            <svg class="current" width="570" height="600"  ></svg>
+          </div>
+           <div class="column is-half">
+           <h2 class="subtitle has-text-centered" style="margin-left:-150px;" >2014</h2>
+            <svg class="map2014" width="570" height="600"></svg>
+          </div>
+        </div>
+
+
+
+        <!-- Your D3 code for ny maps -->
+        
+
+        <!-- Info -->
+        <p class="subtitle is-5 has-text-centered" style="margin-top:-50px">41 out of California's 58 counties - that's over 70 % - have seen an increase in drug overdose mortality rates over the past 4 years.  Excluding counties where no data is available, only Shasta, Marin, San Benito, Sutter, Placer, and Stanislaus counties saw a decline.  Lake, Siskiyou, Yuba, and Imperial counties saw the greatest increases.</p>
+    </div>
+
+    <script>
+
+    var current_domain = [0, 9, 14, 19, 27, 45]
+	var current_color = d3.scaleThreshold()
+    .domain(current_domain)
+    //.range(d3.schemeOrRd[5]);
+    .range([d3.rgb("#fef0d9"), d3.rgb('#fdcc8a'), d3.rgb('#fc8d59'), d3.rgb('#e34a33'), d3.rgb('#b30000')]);
+
+    var currentMap = d3.map();
+    var map2014 = d3.map();
+
+    d3.queue()
+    
+    .defer(d3.csv, "data/overdoses_2018_updated.csv", function(d) { 
+        if (isNaN(d.DrugOverdoseMortalityRate)) {
+            console.log('nan')
+        } else {
+            currentMap.set(d.FIPS, +d.DrugOverdoseMortalityRate ); 
+        }
+    
+    })
+    .defer(d3.csv, "data/overdoses_2014_updated.csv", function(e) { 
+        if (isNaN(e.DrugOverdoseMortalityRate)) {
+            console.log('nan')
+        } else {
+            map2014.set(e.FIPS, +e.DrugOverdoseMortalityRate); 
+        }
+    
+    })
+      .await(ready);
+
+
+
+       
+function ready(error) {
+        
+        
+	  if (error) throw error;
+        // svg repositioning
+        //$("svg").css({top: 100, left: 100});
+
+  //projection
+  var albersProjection = d3.geoAlbers()
+    .scale( 2800)
+    .rotate ( [119.6298,0] )
+    .center( [0, 38.9781] )
+
+  
+   /*
+   var dragcontainer = d3.drag()
+  .on("drag", function(d, i) {
+    d3.select(this).attr("transform", "translate(" + (d.x = d3.event.x) + "," + (d.y = d3.event.y) + ")");
+  });
+var drag = d3.select("svg").datum({x: 0, y: 0}).call(dragcontainer)
+*/
+  //GeoPath
+  var geoPath = d3.geoPath()
+    .projection( albersProjection );
+
+  
+
+    d3.select("svg.current").selectAll("path")
+    .data( CaliforniaCountiesOverdoses.features )
+    .enter()
+    .append( "path" )
+    .attr( "fill", "white" )
+    .attr( "opacity", .8 )
+    .attr( "stroke", "#696969" )
+    .attr("transform", "translate(-200,-80)")
+    .attr( "border-radius", '50%' )
+    .attr( "stroke-width", ".35" )
+    .attr( "d", geoPath )
+        .attr("class","counties")
+        
+        .attr("fill", function(d) { 
+            var value = currentMap.get(d.properties.ID);
+            return (value != 0 ? current_color(value) : "grey");  
+})
+	.on("mouseover", function(d) {      
+            countyDiv.transition()        
+                .duration(200)      
+                .style("opacity", .9);      
+            countyDiv .html('<br/>' + d.properties.NAME + '<br/>' + d.properties.DrugOverdo + ' overdoses per 10,000')  
+                .style("left", (d3.event.pageX) + "px")     
+                .style("top", (d3.event.pageY - 88) + "px"); 
+                d3.select(this).attr("class","countyHover");   
+            })
+            .on("mouseout", function(d) {       
+            countyDiv.transition()        
+                .duration(200)      
+                .style("opacity", 0);  
+            d3.select(this).attr("class","counties"); 
+            });    
+
+
+
+    d3.select("svg.map2014").selectAll("path")
+    .data( CaliforniaCountiesOverdoses.features )
+    .enter()
+    .append( "path" )
+    .attr( "fill", "white" )
+    .attr( "opacity", .8 )
+    .attr( "stroke", "#696969" )
+    .attr("transform", "translate(-200,-80)")
+    .attr( "border-radius", '50%' )
+    .attr( "stroke-width", ".35" )
+    .attr( "d", geoPath )
+        .attr("class","counties-2014")
+        
+        .attr("fill", function(e) { 
+            var value2014 = map2014.get(e.properties.ID);
+            return (value2014 != 0 ? current_color(value2014) : "grey");  
+})
+	.on("mouseover", function(e) { 
+			 var value2014 = map2014.get(e.properties.ID);     
+            county2014Div.transition()        
+                .duration(200)      
+                .style("opacity", .9);      
+            county2014Div .html('<br/>' + e.properties.NAME + '<br/>' + value2014 + ' overdoses per 10,000')  
+                .style("left", (d3.event.pageX) + "px")     
+                .style("top", (d3.event.pageY - 88) + "px"); 
+                d3.select(this).attr("class","countyHover");   
+            })
+            .on("mouseout", function(e) {       
+            county2014Div.transition()        
+                .duration(200)      
+                .style("opacity", 0);  
+            d3.select(this).attr("class","counties"); 
+            });   
+
+     // Define tooltip
+     var countyDiv = d3.select("body").append("div")   
+    .attr("class", "countyTooltip")               
+    .style("opacity", 0)
+
+    var county2014Div = d3.select("body").append("div")   
+    .attr("class", "county2014Tooltip")               
+    .style("opacity", 0)
+    //.style("left", (d3.event.pageX) + "px")     
+    //.style("top", (d3.event.pageY - 28) + "px");
+
+document.getElementsByClassName("svg.current").align = "left";
+   $('counties').removeAttr('viewBox');
+$('counties').each(function () { $(this)[0].setAttribute('viewBox', '0 0 100 100') });
+$("current").attr("stroke-width",'8');
+
+}
+    </script>
+  </body>
+</html>
